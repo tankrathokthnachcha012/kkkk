@@ -1,117 +1,69 @@
-
-$("#createRoomBtn").onclick = () => {
-    if (!currentUser) {
-        openAuth();
-        return;
-    }
-
-    openModal(`
-        <h2>สร้างห้องเล่นเกม</h2>
-        <p>สร้างห้องเพื่อให้สมาชิกคนอื่นเข้าร่วม</p>
-
-        <form id="roomForm">
-            <div class="form-group">
-                <label>ชื่อห้อง</label>
-                <input class="form-control" name="title" required maxlength="45">
-            </div>
-
-            <div class="form-group">
-                <label>เลือกเกม</label>
-                <select class="form-control" name="game">
-                    ${games.map(g => `<option>${g.name}</option>`).join("")}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>จำนวนผู้เล่นสูงสุด</label>
-                <select class="form-control" name="max_players">
-                    <option>4</option>
-                    <option>5</option>
-                    <option>6</option>
-                    <option>8</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>สไตล์การเล่น</label>
-                <select class="form-control" name="style">
-                    <option>เล่นชิล ๆ</option>
-                    <option>สายวางแผน</option>
-                    <option>สายปาร์ตี้</option>
-                </select>
-            </div>
-
-            <button class="btn btn-primary form-submit">สร้างห้อง</button>
-        </form>
-    `);
-
-    $("#roomForm").onsubmit = async e => {
-        e.preventDefault();
-
-        const submit = e.target.querySelector("button");
-        submit.disabled = true;
-
-        try {
-            const { data: { user }, error: authError } =
-                await db.auth.getUser();
-
-            if (authError || !user) {
-                throw new Error("กรุณาเข้าสู่ระบบใหม่");
-            }
-
-            const { data: profile, error: profileError } =
-                await db.from("profiles")
-                    .select("id")
-                    .eq("id", user.id)
-                    .maybeSingle();
-
-            if (profileError) throw profileError;
-
-            // สร้างโปรไฟล์หากยังไม่มี
-            if (!profile) {
-                const { error } = await db.from("profiles").insert({
-                    id: user.id,
-                    display_name:
-                        user.user_metadata?.display_name || "สมาชิก"
-                });
-
-                if (error) throw error;
-            }
-
-            const d = Object.fromEntries(new FormData(e.target));
-
-            const { data, error } = await db.from("rooms")
-                .insert({
-                    title: d.title,
-                    game: d.game,
-                    max_players: Number(d.max_players),
-                    style: d.style,
-                    host_id: user.id
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            const { error: joinError } = await db.from("room_members")
-                .insert({
-                    room_id: data.id,
-                    user_id: user.id
-                });
-
-            if (joinError) {
-                toast("สร้างห้องแล้ว แต่เข้าร่วมห้องไม่สำเร็จ: " + joinError.message);
-            } else {
-                toast("สร้างห้องเรียบร้อย!");
-            }
-
-            closeModal();
-            await loadRooms();
-
-        } catch (err) {
-            toast(err.message || "เกิดข้อผิดพลาด");
-        } finally {
-            submit.disabled = false;
-        }
-    };
-};
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const db = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+const games = [
+ {id:1,name:"Catan",icon:"🏝️",category:"วางแผน",players:"3–4 คน",time:"60–90 นาที",level:"ปานกลาง",desc:"สร้างถนนและเมือง แลกเปลี่ยนทรัพยากรเพื่อขยายอาณาจักร"},
+ {id:2,name:"Dixit",icon:"🦋",category:"ครอบครัว",players:"3–6 คน",time:"30 นาที",level:"ง่าย",desc:"ใช้จินตนาการเล่าเรื่องจากภาพและทายการ์ดของเพื่อน"},
+ {id:3,name:"Codenames",icon:"🕵️",category:"ปาร์ตี้",players:"4–8 คน",time:"15–30 นาที",level:"ง่าย",desc:"ทายคำใบ้เพื่อค้นหาสายลับทีมตัวเองให้ครบก่อนอีกฝ่าย"},
+ {id:4,name:"Ticket to Ride",icon:"🚂",category:"วางแผน",players:"2–5 คน",time:"30–60 นาที",level:"ปานกลาง",desc:"สะสมการ์ดและสร้างเส้นทางรถไฟเชื่อมเมืองต่าง ๆ"},
+ {id:5,name:"Carcassonne",icon:"🏰",category:"วางแผน",players:"2–5 คน",time:"35 นาที",level:"ปานกลาง",desc:"วางแผ่นพื้นที่เพื่อสร้างเมือง ถนน และทุ่งหญ้า"},
+ {id:6,name:"Exploding Kittens",icon:"🐱",category:"ปาร์ตี้",players:"2–5 คน",time:"15 นาที",level:"ง่าย",desc:"เกมการ์ดสุดป่วน ใช้การ์ดพิเศษเพื่อเอาตัวรอด"}
+];
+const demoFriends = [
+ {name:"มิน",icon:"🧑🏻‍🎨",style:"เล่นชิล ๆ",games:"Dixit, Codenames",about:"สมาชิกตัวอย่างสำหรับแสดงหน้าค้นหาเพื่อน"},
+ {name:"พีท",icon:"🧑🏻‍🚀",style:"สายวางแผน",games:"Catan, Ticket to Ride",about:"สมาชิกตัวอย่างสำหรับแสดงหน้าค้นหาเพื่อน"},
+ {name:"ฟ้า",icon:"👩🏻‍💻",style:"สายปาร์ตี้",games:"Codenames, Exploding Kittens",about:"สมาชิกตัวอย่างสำหรับแสดงหน้าค้นหาเพื่อน"}
+];
+let currentUser = null;
+let rooms = [], events = [], members = [];
+const escapeHTML = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600)}
+function go(page){$$(".page").forEach(p=>p.classList.remove("active"));$(`#page-${page}`)?.classList.add("active");$$(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("#mainNav").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(page==="profile")renderProfile();if(page==="admin")renderAdmin();if(page==="rooms")loadRooms();if(page==="events")loadEvents();if(page==="friends")loadFriends()}
+$$("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
+$("#menuToggle").onclick=()=>$("#mainNav").classList.toggle("open");
+function updateAuth(){const logged=!!currentUser;$("#authButton").textContent=logged?"ออกจากระบบ":"เข้าสู่ระบบ";$("#userGreeting").textContent=logged?`สวัสดี ${currentUser.display_name}`:"";$("#profileButton").classList.toggle("hidden",!logged);$("#profileButton").onclick=()=>go("profile")}
+$("#authButton").onclick=async()=>{if(currentUser){await db.auth.signOut();currentUser=null;updateAuth();toast("ออกจากระบบแล้ว")}else openAuth("login")};
+function openModal(html){$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden")}
+function closeModal(){$("#modalBackdrop").classList.add("hidden")}
+$("#modalClose").onclick=closeModal;$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});
+async function refreshProfile(){const {data:{user}}=await db.auth.getUser();if(!user){currentUser=null;updateAuth();return}const {data,error}=await db.from("profiles").select("*").eq("id",user.id).single();if(error){console.error(error);currentUser={id:user.id,email:user.email,display_name:user.user_metadata?.display_name||"สมาชิก",role:"member"};}else currentUser={...data,email:user.email};updateAuth()}
+function openAuth(mode="login"){
+ const signup=mode==="signup";
+ openModal(`<h2>${signup?"สร้างบัญชีสมาชิก":"ยินดีต้อนรับกลับมา"}</h2><p>${signup?"สมัครสมาชิกเพื่อสร้างโปรไฟล์และเข้าร่วมห้องเกม":"เข้าสู่ระบบเพื่อใช้งานพื้นที่สมาชิก"}</p>
+ <form id="authForm">${signup?`<div class="form-group"><label>ชื่อที่แสดง</label><input class="form-control" name="name" required maxlength="30" placeholder="ชื่อเล่นของคุณ"></div>`:""}
+ <div class="form-group"><label>อีเมล</label><input class="form-control" name="email" type="email" required placeholder="name@example.com"></div>
+ <div class="form-group"><label>รหัสผ่าน</label><input class="form-control" name="password" type="password" required minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร"></div>
+ <button class="btn btn-primary form-submit">${signup?"สมัครสมาชิก":"เข้าสู่ระบบ"}</button></form>
+ <div class="form-note">${signup?"มีบัญชีแล้ว?":"ยังไม่มีบัญชี?"} <button class="text-link" id="switchAuth">${signup?"เข้าสู่ระบบ":"สมัครสมาชิก"}</button></div>
+ <div class="form-note">บัญชีผู้ดูแลต้องกำหนด role เป็น admin ใน Supabase หลังสมัครสมาชิก</div>`);
+ $("#switchAuth").onclick=()=>openAuth(signup?"login":"signup");
+ $("#authForm").onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const submit=e.target.querySelector("button[type=submit],button:not([type])");submit.disabled=true;submit.textContent="กำลังดำเนินการ...";
+ try{
+  if(signup){const {data,error}=await db.auth.signUp({email:d.email,password:d.password,options:{data:{display_name:d.name}}});if(error)throw error;if(data.session){await refreshProfile();closeModal();toast("สมัครสมาชิกสำเร็จ")}else{closeModal();toast("สมัครสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชี")}}
+  else{const {error}=await db.auth.signInWithPassword({email:d.email,password:d.password});if(error)throw error;await refreshProfile();closeModal();toast("เข้าสู่ระบบสำเร็จ")}
+ }catch(err){toast(err.message||"เกิดข้อผิดพลาด")}finally{if(submit)submit.disabled=false}
+ };
+}
+function gameCard(g){return `<article class="game-card"><div class="game-art">${g.icon}</div><span class="tag">${g.category}</span><h3>${g.name}</h3><p>${g.desc}</p><div class="card-bottom"><small class="muted">👥 ${g.players} · ⏱ ${g.time}</small><button class="text-link" data-game="${g.id}">รายละเอียด →</button></div></article>`}
+function renderGames(){const q=($("#gameSearch")?.value||"").toLowerCase(),cat=$("#gameCategory")?.value||"ทั้งหมด";const filtered=games.filter(g=>(g.name.toLowerCase().includes(q)||g.desc.toLowerCase().includes(q))&&(cat==="ทั้งหมด"||g.category===cat));$("#allGames").innerHTML=filtered.length?filtered.map(gameCard).join(""):`<div class="empty-state"><b>ไม่พบเกมที่ค้นหา</b>ลองใช้คำค้นหาอื่น</div>`;$("#homeGames").innerHTML=games.slice(0,3).map(gameCard).join("");$$("[data-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.id==b.dataset.game);openModal(`<div class="game-art">${g.icon}</div><span class="tag">${g.category}</span><h2>${g.name}</h2><p>${g.desc}</p><p>👥 จำนวนผู้เล่น: ${g.players}<br>⏱ เวลาเล่น: ${g.time}<br>ระดับความยาก: ${g.level}</p><button class="btn btn-primary form-submit" id="findRoomForGame">ค้นหาห้องเกมนี้</button>`);$("#findRoomForGame").onclick=()=>{closeModal();go("rooms")}})}
+$("#gameSearch").oninput=renderGames;$("#gameCategory").onchange=renderGames;
+async function loadFriends(){if(!currentUser){renderFriends(demoFriends);return}const {data,error}=await db.from("profiles").select("id,display_name,style,favorite_game").neq("id",currentUser.id);if(error){toast(error.message);return}renderFriends((data||[]).map(p=>({id:p.id,name:p.display_name,icon:"🙂",style:p.style,games:p.favorite_game,about:"สมาชิก BOARD GAME LOUNGE"})))}
+function renderFriends(list=demoFriends){const q=($("#friendSearch").value||"").toLowerCase(),style=$("#friendStyle").value;const filtered=list.filter(f=>(f.name+f.games+f.about).toLowerCase().includes(q)&&(style==="ทั้งหมด"||f.style===style));$("#friendList").innerHTML=filtered.map(f=>`<article class="friend-card"><div class="friend-top"><div class="friend-avatar">${f.icon||"🙂"}</div><div><h3>${escapeHTML(f.name)}</h3><span class="tag">${escapeHTML(f.style)}</span></div></div><p>${escapeHTML(f.about)}</p><small class="muted">เกมที่สนใจ: ${escapeHTML(f.games)}</small><br><button class="btn btn-outline btn-small" data-friend="${escapeHTML(f.name)}">ชวนเข้าห้องเกม</button></article>`).join("")||`<div class="empty-state">ไม่พบสมาชิกที่ตรงกับการค้นหา</div>`;$$("[data-friend]").forEach(b=>b.onclick=()=>{if(!currentUser){openAuth();return}go("rooms");toast("เลือกห้องเกมเพื่อชวนเพื่อนมาร่วมเล่น")})}
+$("#friendSearch").oninput=()=>loadFriends();$("#friendStyle").onchange=()=>loadFriends();
+async function loadRooms(){const {data,error}=await db.from("rooms").select("id,title,game,max_players,style,host_id,created_at,room_members(user_id,profiles(display_name))").order("created_at",{ascending:false});if(error){console.error(error);$("#roomList").innerHTML=`<div class="empty-state">โหลดห้องเกมไม่สำเร็จ: ${escapeHTML(error.message)}</div>`;return}rooms=data||[];renderRooms()}
+function renderRooms(){const el=$("#roomList");el.innerHTML=rooms.length?rooms.map(r=>{const count=r.room_members?.length||0;const host=r.room_members?.find(m=>m.user_id===r.host_id)?.profiles?.display_name||"สมาชิก";return `<article class="room-card"><span class="room-status ${count>=r.max_players?"full":""}">${count>=r.max_players?"เต็มแล้ว":"กำลังเปิดรับ"}</span><h3>${escapeHTML(r.title)}</h3><p>เกม: ${escapeHTML(r.game)}</p><div class="room-meta"><span>👤 ${escapeHTML(host)}</span><span>🧑‍🤝‍🧑 ${count}/${r.max_players}</span></div><span class="tag">${escapeHTML(r.style)}</span><div class="card-bottom"><small class="muted">ห้องเล่นเกม</small><button class="btn btn-primary btn-small" data-join="${r.id}" ${count>=r.max_players?"disabled":""}>เข้าร่วมห้อง</button></div></article>`}).join(""):`<div class="empty-state"><b>ยังไม่มีห้องเกม</b>เข้าสู่ระบบแล้วสร้างห้องแรกได้เลย</div>`;$$("[data-join]").forEach(b=>b.onclick=()=>joinRoom(b.dataset.join))}
+async function joinRoom(id){if(!currentUser){openAuth();return}const room=rooms.find(r=>r.id===id);if(room.room_members?.some(m=>m.user_id===currentUser.id)){toast("คุณอยู่ในห้องนี้แล้ว");return}if((room.room_members?.length||0)>=room.max_players){toast("ห้องนี้เต็มแล้ว");return}const {error}=await db.from("room_members").insert({room_id:id,user_id:currentUser.id});if(error){toast(error.message);return}toast("เข้าร่วมห้องแล้ว");loadRooms()}
+$("#createRoomBtn").onclick=()=>{if(!currentUser){openAuth();return}openModal(`<h2>สร้างห้องเล่นเกม</h2><p>สร้างห้องเพื่อให้สมาชิกคนอื่นเข้าร่วม</p><form id="roomForm"><div class="form-group"><label>ชื่อห้อง</label><input class="form-control" name="title" required maxlength="45" placeholder="เช่น คืนวันศุกร์เล่นบอร์ดเกม"></div><div class="form-group"><label>เลือกเกม</label><select class="form-control" name="game">${games.map(g=>`<option>${g.name}</option>`).join("")}</select></div><div class="form-group"><label>จำนวนผู้เล่นสูงสุด</label><select class="form-control" name="max_players"><option>4</option><option>5</option><option>6</option><option>8</option></select></div><div class="form-group"><label>สไตล์การเล่น</label><select class="form-control" name="style"><option>เล่นชิล ๆ</option><option>สายวางแผน</option><option>สายปาร์ตี้</option></select></div><button class="btn btn-primary form-submit">สร้างห้อง</button></form>`);$("#roomForm").onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const {data,error}=await db.from("rooms").insert({title:d.title,game:d.game,max_players:Number(d.max_players),style:d.style,host_id:currentUser.id}).select().single();if(error){toast(error.message);return}const {error:joinError}=await db.from("room_members").insert({room_id:data.id,user_id:currentUser.id});if(joinError)toast("สร้างห้องแล้ว แต่เพิ่มผู้สร้างเข้าห้องไม่สำเร็จ: "+joinError.message);else toast("สร้างห้องเรียบร้อย");closeModal();loadRooms()}}
+async function loadEvents(){const {data,error}=await db.from("events").select("*").order("event_date");if(error){$("#eventList").innerHTML=`<div class="empty-state">${escapeHTML(error.message)}</div>`;return}events=data||[];renderEvents()}
+function renderEvents(){const fmt=d=>{const x=new Date(d+"T00:00:00");return {day:x.getDate(),month:x.toLocaleDateString("th-TH",{month:"short"})}};$("#eventList").innerHTML=events.map(ev=>{const d=fmt(ev.event_date);return `<article class="event-card"><div class="event-date"><strong>${d.day}</strong>${d.month}</div><div class="event-info"><h3>${escapeHTML(ev.title)}</h3><p>${escapeHTML(ev.description)}</p></div><span class="tag">กิจกรรมชุมชน</span></article>`}).join("")||`<div class="empty-state">ยังไม่มีกิจกรรมในขณะนี้</div>`}
+async function renderProfile(){if(!currentUser){$("#profileContent").innerHTML=`<div class="empty-state"><b>เข้าสู่ระบบก่อนใช้งานโปรไฟล์</b><button class="btn btn-primary" id="profileLogin">เข้าสู่ระบบ</button></div>`;$("#profileLogin").onclick=()=>openAuth();return}$("#profileContent").innerHTML=`<div class="profile-box"><div class="profile-head"><div class="profile-avatar">☺</div><div><h2>${escapeHTML(currentUser.display_name)}</h2><span class="muted">${escapeHTML(currentUser.email)}</span><br><span class="tag">${currentUser.role==="admin"?"ผู้ดูแลระบบ":"สมาชิก"}</span></div></div><form id="profileForm"><div class="form-group"><label>ชื่อที่แสดง</label><input class="form-control" name="display_name" value="${escapeHTML(currentUser.display_name)}" required></div><div class="form-group"><label>สไตล์การเล่น</label><select class="form-control" name="style"><option ${currentUser.style==="เล่นชิล ๆ"?"selected":""}>เล่นชิล ๆ</option><option ${currentUser.style==="สายวางแผน"?"selected":""}>สายวางแผน</option><option ${currentUser.style==="สายปาร์ตี้"?"selected":""}>สายปาร์ตี้</option></select></div><div class="form-group"><label>เกมที่ชื่นชอบ</label><select class="form-control" name="favorite_game">${games.map(g=>`<option ${currentUser.favorite_game===g.name?"selected":""}>${g.name}</option>`).join("")}</select></div><button class="btn btn-primary">บันทึกข้อมูล</button> ${currentUser.role==="admin"?'<button class="btn btn-outline" type="button" id="adminGo">หน้าผู้ดูแล</button>':""}</form></div>`;$("#profileForm").onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const {error}=await db.from("profiles").update(d).eq("id",currentUser.id);if(error){toast(error.message);return}await refreshProfile();toast("บันทึกโปรไฟล์แล้ว");renderProfile()};$("#adminGo")?.addEventListener("click",()=>go("admin"))}
+async function renderAdmin(){if(!currentUser||currentUser.role!=="admin"){$("#adminStats").innerHTML="";$("#adminRooms").innerHTML="";$("#adminEvents").innerHTML="";$("#adminMembers").innerHTML=`<div class="empty-state"><b>ไม่มีสิทธิ์เข้าถึง</b>บัญชีนี้ไม่ใช่ผู้ดูแลระบบ</div>`;return}const [p,r,e]=await Promise.all([db.from("profiles").select("id",{count:"exact",head:true}),db.from("rooms").select("id",{count:"exact",head:true}),db.from("events").select("id",{count:"exact",head:true})]);$("#adminStats").innerHTML=`<div class="stat-card"><strong>${p.count||0}</strong><span>สมาชิกที่ลงทะเบียน</span></div><div class="stat-card"><strong>${r.count||0}</strong><span>ห้องเล่นเกม</span></div><div class="stat-card"><strong>${e.count||0}</strong><span>กิจกรรมทั้งหมด</span></div>`;
+ const {data:roomData}=await db.from("rooms").select("id,title,game,room_members(user_id)").order("created_at",{ascending:false});$("#adminRooms").innerHTML=(roomData||[]).map(x=>`<div class="data-row"><span>${escapeHTML(x.title)} · ${x.room_members?.length||0} คน</span><button class="danger-link" data-delroom="${x.id}">ลบห้อง</button></div>`).join("")||"ไม่มีห้องเกม";
+ const {data:eventData}=await db.from("events").select("*").order("event_date");$("#adminEvents").innerHTML=(eventData||[]).map(x=>`<div class="data-row"><span>${escapeHTML(x.title)} · ${x.event_date}</span><button class="danger-link" data-delevent="${x.id}">ลบกิจกรรม</button></div>`).join("")||"ไม่มีกิจกรรม";
+ const {data:memberData}=await db.from("profiles").select("id,display_name,role,created_at").order("created_at",{ascending:false});$("#adminMembers").innerHTML=(memberData||[]).map(m=>`<div class="data-row"><span>${escapeHTML(m.display_name)}</span><span class="tag">${m.role==="admin"?"ผู้ดูแล":"สมาชิก"}</span></div>`).join("")||"ยังไม่มีสมาชิก";
+ $$("[data-delroom]").forEach(b=>b.onclick=async()=>{if(!confirm("ต้องการลบห้องนี้หรือไม่?"))return;const {error}=await db.from("rooms").delete().eq("id",b.dataset.delroom);if(error)toast(error.message);else{toast("ลบห้องแล้ว");renderAdmin();loadRooms()}});
+ $$("[data-delevent]").forEach(b=>b.onclick=async()=>{if(!confirm("ต้องการลบกิจกรรมนี้หรือไม่?"))return;const {error}=await db.from("events").delete().eq("id",b.dataset.delevent);if(error)toast(error.message);else{toast("ลบกิจกรรมแล้ว");renderAdmin();loadEvents()}});
+ $("#addEventBtn").onclick=()=>{openModal(`<h2>เพิ่มกิจกรรม</h2><form id="eventForm"><div class="form-group"><label>ชื่อกิจกรรม</label><input class="form-control" name="title" required></div><div class="form-group"><label>วันที่</label><input class="form-control" name="event_date" type="date" required></div><div class="form-group"><label>รายละเอียด</label><textarea class="form-control" name="description" required></textarea></div><button class="btn btn-primary form-submit">บันทึกกิจกรรม</button></form>`);$("#eventForm").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target));const {error}=await db.from("events").insert({...d,created_by:currentUser.id});if(error){toast(error.message);return}closeModal();toast("เพิ่มกิจกรรมแล้ว");renderAdmin();loadEvents()}}
+}
+async function init(){renderGames();renderFriends(demoFriends);await refreshProfile();await loadRooms();await loadEvents();db.auth.onAuthStateChange(async(_event,session)=>{if(session){setTimeout(async()=>{await refreshProfile()},0)}else{currentUser=null;updateAuth()}})}
+init();
