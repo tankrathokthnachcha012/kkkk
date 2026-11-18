@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#17152d">
+  <title>BOARD GAME LOUNGE | เล่นเกม หาเพื่อน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" data-page="home"><span class="brand-icon">♟</span><span>BOARD GAME <b>LOUNGE</b><small>PLAY • MEET • CONNECT</small></span></a>
+    <button class="menu-toggle" id="menuToggle" aria-label="เปิดเมนู">☰</button>
+    <nav id="mainNav">
+      <button data-page="home" class="nav-link active">หน้าแรก</button>
+      <button data-page="games" class="nav-link">คลังเกม</button>
+      <button data-page="friends" class="nav-link">หาเพื่อน</button>
+      <button data-page="rooms" class="nav-link">ห้องเล่นเกม</button>
+      <button data-page="events" class="nav-link">กิจกรรม</button>
+    </nav>
+    <div class="top-actions">
+      <span id="userGreeting" class="user-greeting"></span>
+      <button class="btn btn-outline btn-small" id="authButton">เข้าสู่ระบบ</button>
+      <button class="avatar-btn hidden" id="profileButton" title="โปรไฟล์">☺</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page active" id="page-home">
+      <div class="hero">
+        <div class="hero-content">
+          <span class="eyebrow">YOUR NEXT GAME STARTS HERE</span>
+          <h1>เกมสนุกขึ้น<br>เมื่อมีเพื่อนเล่นด้วย</h1>
+          <p>พื้นที่สำหรับคนรักบอร์ดเกม ค้นหาเกมที่ชอบ พบเพื่อนใหม่ และสร้างช่วงเวลาดี ๆ ไปด้วยกัน</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" data-page="games">ค้นหาบอร์ดเกม <span>→</span></button>
+            <button class="btn btn-glass" data-page="friends">หาเพื่อนเล่นเกม</button>
+          </div>
+          <div class="hero-note"><span class="live-dot"></span> COMMUNITY FOR EVERY BOARD GAME LOVER</div>
+        </div>
+        <div class="hero-art">
+          <div class="art-card art-card-back">✦</div>
+          <div class="art-card art-card-front"><span class="art-symbol">♜</span><strong>LET'S<br>PLAY!</strong><small>GOOD GAME, GOOD FRIENDS</small></div>
+          <span class="float-dice">⚄</span><span class="float-star">✧</span>
+        </div>
+      </div>
+
+      <section class="section-wrap">
+        <div class="section-heading"><div><span class="eyebrow">EXPLORE</span><h2>เริ่มต้นความสนุก</h2></div><span class="muted">เลือกสิ่งที่อยากทำได้เลย</span></div>
+        <div class="feature-grid">
+          <article class="feature-card feature-purple"><span class="feature-icon">🎲</span><h3>ค้นหาบอร์ดเกม</h3><p>เลือกเกมจากหมวดหมู่และระดับความยากที่ชอบ</p><button data-page="games" class="text-link">ดูเกมทั้งหมด →</button></article>
+          <article class="feature-card feature-orange"><span class="feature-icon">🧑‍🤝‍🧑</span><h3>หาเพื่อนเล่นเกม</h3><p>พบสมาชิกที่สนใจเกมเหมือนกันและเริ่มทำความรู้จัก</p><button data-page="friends" class="text-link">ค้นหาเพื่อน →</button></article>
+          <article class="feature-card feature-blue"><span class="feature-icon">🏠</span><h3>เข้าร่วมห้องเกม</h3><p>สร้างห้องหรือเข้าร่วมห้องที่กำลังเปิดรับผู้เล่น</p><button data-page="rooms" class="text-link">ไปที่ห้องเกม →</button></article>
+        </div>
+      </section>
+      <section class="section-wrap popular-wrap">
+        <div class="section-heading"><div><span class="eyebrow">POPULAR GAMES</span><h2>เกมแนะนำ</h2></div><button class="text-link" data-page="games">ดูทั้งหมด →</button></div>
+        <div class="game-grid" id="homeGames"></div>
+      </section>
+    </section>
+
+    <section class="page content-page" id="page-games">
+      <div class="page-heading"><span class="eyebrow">GAME LIBRARY</span><h1>คลังบอร์ดเกม</h1><p>ค้นหาเกมที่ใช่ แล้วชวนเพื่อนมาเล่นด้วยกัน</p></div>
+      <div class="toolbar"><input id="gameSearch" type="search" placeholder="ค้นหาชื่อเกม..."><select id="gameCategory"><option value="ทั้งหมด">ทุกหมวดหมู่</option><option>วางแผน</option><option>ปาร์ตี้</option><option>ครอบครัว</option><option>ผจญภัย</option></select></div>
+      <div class="game-grid" id="allGames"></div>
+    </section>
+
+    <section class="page content-page" id="page-friends">
+      <div class="page-heading"><span class="eyebrow">MEET YOUR CREW</span><h1>หาเพื่อนเล่นเกม</h1><p>ค้นหาคนที่ชอบเล่นเกมแนวเดียวกับคุณ</p></div>
+      <div class="toolbar"><input id="friendSearch" type="search" placeholder="ค้นหาชื่อหรือเกมที่สนใจ..."><select id="friendStyle"><option value="ทั้งหมด">ทุกสไตล์</option><option>เล่นชิล ๆ</option><option>สายวางแผน</option><option>สายปาร์ตี้</option></select></div>
+      <div class="friend-grid" id="friendList"></div>
+      <div class="notice">หมายเหตุ: โปรไฟล์ตัวอย่างเป็นข้อมูลสาธิต คุณสามารถสมัครสมาชิกเพื่อสร้างโปรไฟล์ของตัวเองได้</div>
+    </section>
+
+    <section class="page content-page" id="page-rooms">
+      <div class="page-heading page-heading-row"><div><span class="eyebrow">PLAY TOGETHER</span><h1>ห้องเล่นเกม</h1><p>เข้าร่วมห้องที่เปิดรับ หรือสร้างห้องใหม่</p></div><button class="btn btn-primary" id="createRoomBtn">＋ สร้างห้องเกม</button></div>
+      <div class="room-grid" id="roomList"></div>
+    </section>
+
+    <section class="page content-page" id="page-events">
+      <div class="page-heading"><span class="eyebrow">COMMUNITY EVENTS</span><h1>กิจกรรมของเรา</h1><p>ติดตามกิจกรรมและนัดเล่นบอร์ดเกมกับสมาชิก</p></div>
+      <div class="event-list" id="eventList"></div>
+    </section>
+
+    <section class="page content-page" id="page-profile">
+      <div class="page-heading"><span class="eyebrow">YOUR SPACE</span><h1>โปรไฟล์สมาชิก</h1><p>จัดการข้อมูลและความสนใจของคุณ</p></div>
+      <div id="profileContent"></div>
+    </section>
+
+    <section class="page content-page" id="page-admin">
+      <div class="page-heading"><span class="eyebrow">ADMIN CONTROL CENTER</span><h1>ระบบผู้ดูแล</h1><p>ภาพรวมและจัดการข้อมูลภายในเว็บไซต์</p></div>
+      <div class="stats-grid" id="adminStats"></div>
+      <div class="admin-panel"><div class="section-heading"><h2>จัดการห้องเล่นเกม</h2><span class="muted">รายการห้องทั้งหมด</span></div><div id="adminRooms"></div></div>
+      <div class="admin-panel"><div class="section-heading"><h2>จัดการกิจกรรม</h2><button class="btn btn-primary btn-small" id="addEventBtn">＋ เพิ่มกิจกรรม</button></div><div id="adminEvents"></div></div>
+      <div class="admin-panel"><div class="section-heading"><h2>สมาชิกในระบบ</h2></div><div id="adminMembers"></div></div>
+    </section>
+  </main>
+
+  <footer><div class="footer-brand">♟ BOARD GAME LOUNGE</div><p>พื้นที่เล็ก ๆ สำหรับเกมดี ๆ และมิตรภาพใหม่ ๆ</p><small>© 2026 BOARD GAME LOUNGE • PLAY FAIR, HAVE FUN</small></footer>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true"><button class="modal-close" id="modalClose">×</button><div id="modalContent"></div></div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
